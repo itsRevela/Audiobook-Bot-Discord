@@ -40,8 +40,8 @@ Includes a set of Python tools for preparing and managing your audiobook library
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/discord-audiobook-bot.git
-cd discord-audiobook-bot
+git clone https://github.com/itsRevela/Audiobook-Bot-Discord.git
+cd Audiobook-Bot-Discord
 ```
 
 ---
