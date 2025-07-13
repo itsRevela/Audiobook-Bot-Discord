@@ -141,7 +141,7 @@ These helper scripts make it easy to prepare your audiobook library for the bot.
 Split a large `.m4b` or `.mp3` audiobook into individual chapter files, preserving metadata.
 
 **When to use:**  
-- You have a single audiobook file (with embedded chapters) and want to split it into separate chapter files for use with the bot.
+- You have a single audiobook file or multiple audiobook files (with embedded chapters instead of separate files for each chapter) and want to split it into separate chapter files for use with the bot.
 
 **How to use:**
 
