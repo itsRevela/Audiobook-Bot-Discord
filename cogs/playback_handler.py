@@ -5,6 +5,7 @@ import logging
 import os
 import time
 from . import audio_utils
+from datetime import datetime, timezone, timedelta
 
 log = logging.getLogger(__name__)
 
@@ -87,6 +88,7 @@ async def play_audio(interaction: discord.Interaction, view, seek_time=0, is_scr
         if not is_scrub:
             view.update_player_view()
 
+        # --- UPDATED: Handle message updates with token expiry protection ---
         await safe_update_message(interaction, view, message, is_auto_advance)
 
         # --- Audio Source Creation and Playback ---
@@ -169,37 +171,58 @@ async def play_audio(interaction: discord.Interaction, view, seek_time=0, is_scr
         if not is_auto_advance:
             await interaction.followup.send("Sorry, I couldn't play that file. An unexpected error occurred.", ephemeral=True)
 
+def is_message_too_old(message):
+    return (datetime.now(timezone.utc) - message.created_at) > timedelta(hours=1)
+
 async def safe_update_message(interaction: discord.Interaction, view, message: str, is_auto_advance: bool = False):
-    """Safely update message, handling token expiry gracefully"""
     try:
-        # Try to edit the original interaction message first
-        await interaction.edit_original_message(content=message, view=view)
-        
-        # Store the message reference for future updates
-        try:
-            original_message = await interaction.original_message()
+        original_message = await interaction.original_message()
+        if not is_message_too_old(original_message):
+            # Edit the original message if it's not too old
+            await original_message.edit(content=message, view=view)
             if not hasattr(view, 'messages'):
                 view.messages = set()
             view.messages.add(original_message)
             view.message = original_message
-            log.info(f"Added original message to tracking (total: {len(view.messages)})")
-        except Exception as e:
-            log.warning(f"Could not get original response message for tracking: {e}")
-            
+            log.info(f"Updated original message (not too old)")
+        else:
+            # Original message too old, delete old message if possible
+            if view.message:
+                try:
+                    await view.message.delete()
+                    log.info("Deleted old player message before sending new one")
+                except (discord.NotFound, discord.Forbidden):
+                    log.info("Old player message already deleted or no permission to delete")
+                except Exception as e:
+                    log.warning(f"Failed to delete old player message: {e}")
+
+            # Send a new message to the channel
+            new_message = await interaction.channel.send(content=message, view=view)
+            if not hasattr(view, 'messages'):
+                view.messages = set()
+            view.messages.add(new_message)
+            view.message = new_message
+            log.info("Sent new message because original was too old")
     except discord.errors.HTTPException as e:
         if e.status == 401 and e.code == 50027:
-            # Token expired - send new message to channel instead
+            # Interaction token expired, delete old message if possible
             log.warning("Interaction token expired, sending new message to channel")
             try:
+                if view.message:
+                    try:
+                        await view.message.delete()
+                        log.info("Deleted old player message before sending new one after token expiry")
+                    except (discord.NotFound, discord.Forbidden):
+                        log.info("Old player message already deleted or no permission to delete")
+                    except Exception as e:
+                        log.warning(f"Failed to delete old player message: {e}")
+
                 new_message = await interaction.channel.send(content=message, view=view)
-                
-                # Update tracking with new message
                 if not hasattr(view, 'messages'):
                     view.messages = set()
                 view.messages.add(new_message)
                 view.message = new_message
                 log.info("Successfully sent new message after token expiry")
-                
             except Exception as fallback_error:
                 log.error(f"Failed to send fallback message: {fallback_error}")
         else:
@@ -223,6 +246,7 @@ async def auto_advance_chapter(view):
             view.current_chapter_index += 1
             view.selected_chapter_path = os.path.join(view.selected_book_path, next_chapter['filename'])
           
+            # **FIXED: Pass is_auto_advance=True to avoid interaction token issues**
             await play_audio(view.interaction, view, seek_time=0, is_auto_advance=True)
 
             # Update presence for new chapter
@@ -251,6 +275,7 @@ async def auto_advance_chapter(view):
 
             view.update_view()
           
+            # **FIXED: Use safe message update for end of audiobook**
             await safe_channel_message(
                 view, 
                 "🎉 Audiobook finished! Select another chapter to continue."

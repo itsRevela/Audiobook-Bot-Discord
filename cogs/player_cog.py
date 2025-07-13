@@ -50,14 +50,14 @@ class AudiobookPlayerView(discord.ui.View):
       
         # Player state tracking
         self.is_playing = False
-        self.is_paused = False
-        self.pause_start_time = 0
+        self.is_paused = False  # Add this
+        self.pause_start_time = 0  # Add this
         self.current_seek = 0
         self.play_start_time = 0
         self.duration = 0
         self.interaction = None
         self.time_tracker_running = False
-        self.message = None  # for webhook updates
+        self.message = None  # Add this for webhook updates
       
         self.update_view()
 
@@ -100,8 +100,8 @@ class AudiobookPlayerView(discord.ui.View):
             self.add_item(BackButton())
         elif self.selection_state == 'chapters':
             # Show chapters for the selected book
-            # Sort all chapters naturally before paginating
-            sorted_chapters = sorted(self.all_chapters, key=lambda item: natural_key(item['title']))
+            # Sort chapters by track number (numeric)
+            sorted_chapters = sorted(self.all_chapters, key=lambda item: item['track'])
             start_index = self.current_chapter_page * CHAPTERS_PER_PAGE
             end_index = start_index + CHAPTERS_PER_PAGE
             chapters_on_page = sorted_chapters[start_index:end_index]
@@ -287,6 +287,7 @@ class SeriesBookSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         selected_index = int(self.values[0]) - self.start_index
         selected_book = self.books[selected_index]
+        # ... rest of your logic ...
         for item in self.view.children:
             if isinstance(item, (discord.ui.Button, discord.ui.Select)):
                 item.disabled = True
@@ -834,7 +835,7 @@ class PlayerCog(commands.Cog):
             await interaction.response.send_message("No audiobook is currently playing. Use `/audiobook` to start one.", ephemeral=True)
             return
         
-        # Refresh the view's interaction context
+        # **NEW: Refresh the view's interaction context**
         view.interaction = interaction  # Update to the fresh interaction
         
         # Calculate current elapsed time
@@ -858,7 +859,7 @@ class PlayerCog(commands.Cog):
         # Send the controls using the refreshed view
         await interaction.response.send_message(message, view=view, ephemeral=True)
         
-        # Track this message for live updates
+        # **NEW: Track this message for live updates**
         try:
             new_message = await interaction.original_message()
             # Initialize messages set if it doesn't exist
@@ -869,5 +870,6 @@ class PlayerCog(commands.Cog):
         except Exception as e:
             log.warning(f"Could not track new controls message: {e}")
 
+# Updated setup function for discord.py
 def setup(bot: commands.AutoShardedBot):
     bot.add_cog(PlayerCog(bot))
