@@ -1,0 +1,20 @@
+# Nextcord (voice support, specific dev version)
+nextcord[voice] @ git+https://github.com/Renaud11232/nextcord.git@v3.1.1a1
+
+# Audio file handling
+mutagen>=1.47.0
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# System utilities (usually included with Python, but listing for completeness)
+asyncio
+logging
+os
+subprocess
+json
+time
+io
+re
+math
+sys
